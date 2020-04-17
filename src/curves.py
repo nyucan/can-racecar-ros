@@ -19,19 +19,19 @@ class Curve(object):
     def distance_to(self, x, y):
         # calculate the shortest distance between a point to this curve
         # return the distance and the coordinate of the point on the curve
-        if not self._sampled_x and not self._sampled_y:
+        if self._sampled_x is None and self._sampled_y is None:
             self._sampled_x, self._sampled_y = self.sample()
         distance = np.square(self._sampled_x - x) + np.square(self._sampled_y - y)
         dis_min, idx_min = np.min(distance), np.argmin(distance)
-        return dis_min, (self._sampled_x, self._sampled_y)
+        return dis_min, (self._sampled_x[idx_min], self._sampled_y[idx_min])
 
 
 class Circle(Curve):
-    def __init__(self, scale=(1, 1), bias=(0, 0)):
-        self.x_func = lambda theta: scale[0] * np.sin(theta) + bias[0]
-        self.y_func = lambda theta: scale[1] * np.cos(theta) + bias[1]
+    def __init__(self, radius=1, bias=(0, 0)):
+        self.x_func = lambda theta: radius * np.sin(theta) + bias[0]
+        self.y_func = lambda theta: radius * np.cos(theta) + bias[1]
         self._sampled_x, self._sampled_y = None, None
+        self.radius = radius
 
-    # override in the future for higher performance
-    def distance_to(self, x, y):
-        return super().distance_to(x, y)
+
+standard_circle = Circle(radius=3, bias=(0, 0))

@@ -4,13 +4,13 @@ import rospy
 import numpy as np
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
-from curves import Circle
+from curves import standard_circle
 
 
 def visualize_circle_track():
     rospy.init_node('pub_marker')
 
-    circle = Circle(scale=(3, 3), bias=(0, 0))
+    circle = standard_circle
     sampled_x, sampled_y = circle.sample()
 
     # create a publisher

@@ -194,6 +194,12 @@ Visualization Manager:
       Class: rviz/Marker
       Name: Marker
       Enabled: true
+    - Name: Axes
+      Alpha: 0.8
+      Class: rviz/Axes
+      Length: 3
+      Radius: 0.05
+      Enabled: true
   Enabled: true
   Global Options:
     Background Color: 92; 38; 134

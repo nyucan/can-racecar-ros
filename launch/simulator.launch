@@ -1,0 +1,31 @@
+<launch>
+    <arg name="control_topic" default="/mux/ackermann_cmd_mux/input/navigation" />
+    <arg name="init_pose_topic" default="/initialpose" />
+    <arg name="car_pose_topic" default="/car_pose" />
+    <arg name="controller" default="/pid" />
+    <arg name="track" default="circle" />
+    
+    <node 
+        pkg="map_server" 
+        name="map_server" 
+        type="map_server" 
+        args="$(find mushr_sim)/maps/sandbox.yaml"
+    />
+
+    <include file="$(find mushr_sim)/launch/single_car.launch">
+        <arg name="racecar_version" value="racecar-uw-nano"/>
+        <arg name="racecar_color" value="" />
+    </include>
+
+    <node pkg="can_racecar" type="pub_marker.py" name="pub_marker">
+        <param name="track" value="$(arg track)" />
+    </node>
+
+    <node pkg="can_racecar" type="pub_control.py" name="pub_control" output="screen">
+        <param name="control_topic" value="$(arg control_topic)" />
+        <param name="init_pose_topic" value="$(arg init_pose_topic)" />
+        <param name="car_pose_topic" value="$(arg car_pose_topic)" />
+        <param name="controller" value="$(arg controller)" />
+    </node>
+</launch>
+

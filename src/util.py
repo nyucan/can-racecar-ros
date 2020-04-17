@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import tf
+import numpy as np
 
 
 def quaternion_to_angle(q):

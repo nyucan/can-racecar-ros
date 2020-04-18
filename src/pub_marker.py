@@ -4,14 +4,13 @@ import rospy
 import numpy as np
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
-from curves import standard_circle
+from geometry import oval_path
 
 
-def visualize_circle_track():
+def visualize_track(track):
     rospy.init_node('pub_marker')
 
-    circle = standard_circle
-    sampled_x, sampled_y = circle.sample()
+    sampled_x, sampled_y = track.get_x(), track.get_y()
 
     # create a publisher
     pub_visualize = rospy.Publisher('/visualization_marker', Marker, queue_size=10)
@@ -45,8 +44,8 @@ def visualize_circle_track():
 
 
 if __name__ == '__main__':
-    track = rospy.get_param('~track', 'circle')
-    if track == 'circle':
-        visualize_circle_track()
+    track = rospy.get_param('~track', 'oval')
+    if track == 'oval':
+        visualize_track(oval_path)
     else:
         raise RuntimeError('Unsupported Track Type: {}'.format(track))

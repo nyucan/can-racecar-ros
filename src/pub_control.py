@@ -13,7 +13,8 @@ from geometry_msgs.msg import (
 )
 from tf.transformations import quaternion_from_euler
 from util import quaternion_to_angle
-from curves import standard_circle
+from geometry import oval_path
+from geometry import calculate_theta, calculate_diff_theta
 
 
 class Controller(object):
@@ -66,13 +67,12 @@ class Controller(object):
 
     def apply_pid_controller(self):
         velocity = 0.4 * self.MAX_VELOCITY
-        # est_x, est_y, est_ori = self.estimate_future_pose(0.1)
-        # diff = np.array(self.calculcate_diff_drive(est_x, est_y, est_ori))
+
         diff = np.array(self.calculcate_diff_drive(*self.car_pose))
-        K = np.array([-1, 0])
+        K = np.array([-1, -0.1])
         steering_angle = np.clip(-K.dot(diff), -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
-        print('Error(distance): {:.2f} Steering: {:.2f}'.format(diff[0], steering_angle))
-        # self.send_command((velocity, steering_angle))
+        print('Error(distance, angle): {:.2f}, {:.2f} Steering: {:.2f}'.format(diff[0], diff[1], steering_angle))
+        self.send_command((velocity, steering_angle))
 
     def send_init_pose(self, pose_data):
         assert len(pose_data) == 3
@@ -88,28 +88,6 @@ class Controller(object):
         drive = AckermannDrive(steering_angle=delta, speed=v)
         self.pub_controls.publish(AckermannDriveStamped(drive=drive))
 
-    def transform_to_theta(self, x, y):
-        """ Extimate theta. From -pi to pi. """
-        theta = 0
-        if x == 0 and y == 0:
-            return theta
-        square_sum = np.sqrt(np.square(x) + np.square(y))
-        sin_theta = y / square_sum
-        cos_theta = x / square_sum
-        if cos_theta >= 0:
-            theta = np.arcsin(sin_theta)
-        elif sin_theta >= 0:
-            theta = np.pi - np.arcsin(sin_theta)
-        else:
-            theta = -np.pi - np.arcsin(sin_theta)
-        return theta
-
-    def estimate_derivative(self, theta, curve):
-        delta = 0.0001
-        delta_x = curve.x_func(theta - delta) - curve.x_func(theta + delta)
-        delta_y = curve.y_func(theta - delta) - curve.y_func(theta + delta)
-        return self.transform_to_theta(delta_x, delta_y)
-
     def estimate_future_pose(self, epslion=0.1):
         car_x, car_y, car_ori = self.car_pose
         est_x = car_x + epslion * np.cos(car_ori)
@@ -117,34 +95,25 @@ class Controller(object):
         return est_x, est_y, car_ori
 
     def calculcate_diff_drive(self, est_x, est_y, est_ori):
-        theta = self.transform_to_theta(est_x, est_y)
-        radius_sq = self.track.x_func(theta) ** 2 + self.track.y_func(theta) ** 2
-        print('theta: {:.2f}, {:.2f}'.format(theta, self.transform_to_theta(self.track.x_func(theta), self.track.y_func(theta))))
-        diff_dis, track_point = self.track.distance_to(est_x, est_y)
-        track_x, track_y = track_point
+        est_theta = calculate_theta(est_x, est_y)
 
         # calculate diff distance
-        if est_x ** 2 + est_y ** 2 >= radius_sq:
+        diff_dis, track_point = self.track.distance_to(est_x, est_y)
+        if not self.track.contains(est_x, est_y):
             diff_dis = -diff_dis
 
         # calculate diff orientation
-        track_theta = self.transform_to_theta(track_x, track_y)
-        track_ori = self.estimate_derivative(track_theta, self.track)
-        diff_ori = est_ori - track_ori
-        if diff_ori > np.pi:
-            diff_ori = -diff_ori + 2 * np.pi
-        elif diff_ori < -np.pi:
-            diff_ori = diff_ori + 2 * np.pi
-        diff_ori = -diff_ori
+        track_ori = self.track.estimate_derivative(est_theta)
+        diff_ori = calculate_diff_theta(est_ori, track_ori)
+
         return diff_dis, diff_ori
 
 
 if __name__ == '__main__':
     rospy.init_node('pub_control')
-    circle = standard_circle
 
     pid_controller = Controller(
-        track=standard_circle, init_pose=(0, 3, 0))
+        track=oval_path, init_pose=(0, 3, 0))
 
     # ----- Main control loop -----
     rospy.spin()

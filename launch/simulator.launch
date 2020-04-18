@@ -27,5 +27,7 @@
         <param name="car_pose_topic" value="$(arg car_pose_topic)" />
         <param name="controller" value="$(arg controller)" />
     </node>
+
+    <node type="rviz" name="rviz" pkg="rviz" args="-d $(find can_racecar)/rviz/default.rviz" />"
 </launch>
 

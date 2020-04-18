@@ -20,6 +20,8 @@ class Controller(object):
     def __init__(self, track, init_pose):
         # Constants
         self.UPDATE_RATE = 20.0
+        self.MAX_STEERING_ANGLE = 0.34
+        self.MAX_VELOCITY = 2.0
 
         # Controller State
         self.car_pose = None
@@ -44,7 +46,7 @@ class Controller(object):
             car_pose_topic, PoseStamped, self.car_pose_cb, queue_size=1)
 
         # initialization
-        rospy.sleep(rospy.Duration.from_sec(0.5))
+        rospy.sleep(rospy.Duration.from_sec(3))
         self.send_init_pose(init_pose)
 
         # ----- Timer -----
@@ -60,7 +62,17 @@ class Controller(object):
         ], dtype=np.float)
 
     def timer_cb(self, event):
-        self.calculcate_diff_drive()
+        self.apply_pid_controller()
+
+    def apply_pid_controller(self):
+        velocity = 0.4 * self.MAX_VELOCITY
+        # est_x, est_y, est_ori = self.estimate_future_pose(0.1)
+        # diff = np.array(self.calculcate_diff_drive(est_x, est_y, est_ori))
+        diff = np.array(self.calculcate_diff_drive(*self.car_pose))
+        K = np.array([-1, 0])
+        steering_angle = np.clip(-K.dot(diff), -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
+        print('Error(distance): {:.2f} Steering: {:.2f}'.format(diff[0], steering_angle))
+        # self.send_command((velocity, steering_angle))
 
     def send_init_pose(self, pose_data):
         assert len(pose_data) == 3
@@ -92,33 +104,39 @@ class Controller(object):
             theta = -np.pi - np.arcsin(sin_theta)
         return theta
 
-    def estimate_deritive(self, theta, curve):
+    def estimate_derivative(self, theta, curve):
         delta = 0.0001
-        delta_x = curve.x_func(theta + delta) - curve.x_func(theta - delta)
-        delta_y = curve.y_func(theta + delta) - curve.y_func(theta - delta)
+        delta_x = curve.x_func(theta - delta) - curve.x_func(theta + delta)
+        delta_y = curve.y_func(theta - delta) - curve.y_func(theta + delta)
         return self.transform_to_theta(delta_x, delta_y)
 
-    def calculcate_diff_drive(self):
+    def estimate_future_pose(self, epslion=0.1):
         car_x, car_y, car_ori = self.car_pose
-        theta = self.transform_to_theta(car_x, car_y)
+        est_x = car_x + epslion * np.cos(car_ori)
+        est_y = car_y + epslion * np.sin(car_ori)
+        return est_x, est_y, car_ori
+
+    def calculcate_diff_drive(self, est_x, est_y, est_ori):
+        theta = self.transform_to_theta(est_x, est_y)
         radius_sq = self.track.x_func(theta) ** 2 + self.track.y_func(theta) ** 2
-        diff_dis, track_point = self.track.distance_to(car_x, car_y)
+        print('theta: {:.2f}, {:.2f}'.format(theta, self.transform_to_theta(self.track.x_func(theta), self.track.y_func(theta))))
+        diff_dis, track_point = self.track.distance_to(est_x, est_y)
         track_x, track_y = track_point
 
         # calculate diff distance
-        if radius_sq >= car_x ** 2 + car_y ** 2:
+        if est_x ** 2 + est_y ** 2 >= radius_sq:
             diff_dis = -diff_dis
 
         # calculate diff orientation
         track_theta = self.transform_to_theta(track_x, track_y)
-        track_ori = self.estimate_deritive(track_theta, self.track)
-        diff_ori = car_ori - track_ori
+        track_ori = self.estimate_derivative(track_theta, self.track)
+        diff_ori = est_ori - track_ori
         if diff_ori > np.pi:
             diff_ori = -diff_ori + 2 * np.pi
         elif diff_ori < -np.pi:
             diff_ori = diff_ori + 2 * np.pi
-
-        print(diff_dis, diff_ori) 
+        diff_ori = -diff_ori
+        return diff_dis, diff_ori
 
 
 if __name__ == '__main__':

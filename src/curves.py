@@ -28,8 +28,8 @@ class Curve(object):
 
 class Circle(Curve):
     def __init__(self, radius=1, bias=(0, 0)):
-        self.x_func = lambda theta: radius * np.sin(theta) + bias[0]
-        self.y_func = lambda theta: radius * np.cos(theta) + bias[1]
+        self.x_func = lambda theta: radius * np.cos(theta) + bias[0]
+        self.y_func = lambda theta: radius * np.sin(theta) + bias[1]
         self._sampled_x, self._sampled_y = None, None
         self.radius = radius
 

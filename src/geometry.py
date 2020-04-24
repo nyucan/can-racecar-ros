@@ -21,13 +21,13 @@ def calculate_theta(x, y):
 
 
 def calculate_diff_theta(theta1, theta2):
-    diff_ori = theta1 - theta2
-    if diff_ori > np.pi:
-        diff_ori = -diff_ori + 2 * np.pi
-    elif diff_ori < -np.pi:
-        diff_ori = diff_ori + 2 * np.pi
-    diff_ori = -diff_ori
-    return diff_ori
+    diff = theta1 - theta2
+    if diff > np.pi:
+        diff = -diff + 2 * np.pi
+    elif diff < -np.pi:
+        diff = diff + 2 * np.pi
+    diff = -diff
+    return diff
 
 
 class Drawer(object):

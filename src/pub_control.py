@@ -27,6 +27,7 @@ class Controller(object):
         # Controller State
         self.car_pose = None
         self.track = track
+        self.last_diff = None
 
         # ----- Read Parameters -----
         control_topic = rospy.get_param(
@@ -65,13 +66,23 @@ class Controller(object):
     def timer_cb(self, event):
         self.apply_pid_controller()
 
-    def apply_pid_controller(self):
+    def apply_pid_controller(self, model='PD'):
         velocity = 0.4 * self.MAX_VELOCITY
-
-        diff = np.array(self.calculcate_diff_drive(*self.car_pose))
-        K = np.array([-1, -0.1])
-        steering_angle = np.clip(-K.dot(diff), -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
-        print('Error(distance, angle): {:.2f}, {:.2f} Steering: {:.2f}'.format(diff[0], diff[1], steering_angle))
+        steering_angle = 0.0
+        if model == 'P':
+            diff = np.array(self.calculcate_diff_drive(*self.car_pose))
+            K = np.array([1, 0.1])
+            err_str = 'Error(dis, psi): {:.2f}, {:.2f}'.format(*diff)
+        elif model == 'PD':
+            diff = np.array(self.calculate_pd_diff_drive(*self.car_pose))
+            K = np.array([1, 0.1, 0.1, 0.1])
+            err_str = 'Error(dis, psi, dot_dis, dot_psi): {:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(*diff)
+        elif model == 'PID':
+            raise NotImplementedError
+        else:
+            raise RuntimeError('Choose a model from \'P\', \'PD\' and \'PID\'')
+        steering_angle = np.clip(K.dot(diff), -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
+        print('{} Steering: {:2f}'.format(err_str, steering_angle))
         self.send_command((velocity, steering_angle))
 
     def send_init_pose(self, pose_data):
@@ -94,19 +105,27 @@ class Controller(object):
         est_y = car_y + epslion * np.sin(car_ori)
         return est_x, est_y, car_ori
 
-    def calculcate_diff_drive(self, est_x, est_y, est_ori):
-        est_theta = calculate_theta(est_x, est_y)
-
-        # calculate diff distance
-        diff_dis, track_point = self.track.distance_to(est_x, est_y)
-        if not self.track.contains(est_x, est_y):
+    def calculcate_diff_drive(self, x, y, psi):
+        """ Calculate (d - d_des) and (psi - psi_des) for a proportional controller. """
+        diff_dis, track_point = self.track.distance_to(x, y)
+        if not self.track.contains(x, y):
             diff_dis = -diff_dis
 
         # calculate diff orientation
-        track_ori = self.track.estimate_derivative(est_theta)
-        diff_ori = calculate_diff_theta(est_ori, track_ori)
+        psi_des = self.track.estimate_derivative(calculate_theta(*track_point))
+        diff_psi = calculate_diff_theta(psi, psi_des)
 
-        return diff_dis, diff_ori
+        return diff_dis, diff_psi
+
+    def calculate_pd_diff_drive(self, x, y, psi):
+        diff_dis, diff_psi = self.calculcate_diff_drive(x, y, psi)
+        if self.last_diff is None:
+            dot_diff_dis, dot_diff_psi = 0, 0
+        else:
+            dot_diff_dis = (diff_dis - self.last_diff[0]) * self.UPDATE_RATE
+            dot_diff_psi = calculate_diff_theta(diff_psi, self.last_diff[1]) * self.UPDATE_RATE
+        self.last_diff = (diff_dis, diff_psi) 
+        return diff_dis, diff_psi, dot_diff_dis, dot_diff_psi
 
 
 if __name__ == '__main__':

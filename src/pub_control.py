@@ -1,7 +1,10 @@
 #!/usr/bin/env python
 
 import rospy
+import rospkg
 import numpy as np
+from os import path
+from datetime import datetime
 from ackermann_msgs.msg import AckermannDrive, AckermannDriveStamped
 from geometry_msgs.msg import (
     Point,
@@ -18,16 +21,25 @@ from geometry import calculate_theta, calculate_diff_theta
 
 
 class Controller(object):
-    def __init__(self, track, init_pose):
+    def __init__(self, track, init_pose, recording_on=True):
+        rospack = rospkg.RosPack()
+
         # Constants
+        self.PACKAGE_NAME = 'can_racecar'
+        self.PACKAGE_DIR = rospack.get_path(self.PACKAGE_NAME)
         self.UPDATE_RATE = 20.0
         self.MAX_STEERING_ANGLE = 0.34
         self.MAX_VELOCITY = 2.0
+        self.DATA_FILE = path.join(self.PACKAGE_DIR, 'tmp', datetime.now().strftime('%Y%m%d%H%M%S'))
 
         # Controller State
         self.car_pose = None
         self.track = track
         self.last_diff = None
+
+        # Data Collection
+        self.data = []
+        self._recording_on = recording_on
 
         # ----- Read Parameters -----
         control_topic = rospy.get_param(
@@ -65,6 +77,10 @@ class Controller(object):
 
     def timer_cb(self, event):
         self.apply_pid_controller()
+        if self._recording_on:
+            if len(self.data) % 100 == 0:
+                # data = np.asarray(self.data)
+                np.save(self.DATA_FILE, self.data)
 
     def apply_pid_controller(self, model='PD'):
         velocity = 0.4 * self.MAX_VELOCITY
@@ -82,7 +98,9 @@ class Controller(object):
         else:
             raise RuntimeError('Choose a model from \'P\', \'PD\' and \'PID\'')
         steering_angle = np.clip(K.dot(diff), -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
-        print('{} Steering: {:2f}'.format(err_str, steering_angle))
+        print('{} Steering: {:.2f}'.format(err_str, steering_angle))
+        if self._recording_on:
+            self.data.append(diff.tolist() + [steering_angle])
         self.send_command((velocity, steering_angle))
 
     def send_init_pose(self, pose_data):
@@ -110,11 +128,9 @@ class Controller(object):
         diff_dis, track_point = self.track.distance_to(x, y)
         if not self.track.contains(x, y):
             diff_dis = -diff_dis
-
         # calculate diff orientation
         psi_des = self.track.estimate_derivative(calculate_theta(*track_point))
         diff_psi = calculate_diff_theta(psi, psi_des)
-
         return diff_dis, diff_psi
 
     def calculate_pd_diff_drive(self, x, y, psi):

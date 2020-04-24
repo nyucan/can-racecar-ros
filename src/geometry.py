@@ -97,9 +97,12 @@ class SimpleTrack(Path):
         super(SimpleTrack, self).__init__(*self.draw())
 
     def draw(self):
-        x1_len, x2_len = round(self.resolution / 2), self.resolution - round(self.resolution / 2)
-        sampled_x1 = np.linspace(*self.x_range, num=x1_len)
-        sampled_x2 = np.linspace(*self.x_range, num=x2_len)[::-1]
+        nums = np.array([0.3, 0.4, 0.3]) * (self.resolution / 2)
+        sampled_x11 = np.linspace(self.x_range[0], self.x_range[0] + 0.35, num=round(nums[0]))
+        sampled_x12 = np.linspace(self.x_range[0] + 0.35, self.x_range[1] - 0.35, num=round(nums[1]))
+        sampled_x13 = np.linspace(self.x_range[1] - 0.35, self.x_range[1], num=round(nums[2]))
+        sampled_x1 = np.concatenate((sampled_x11, sampled_x12, sampled_x13))
+        sampled_x2 = np.linspace(*self.x_range, num=round(self.resolution / 2))[::-1]
         y1 = [self._y2_func(x) for x in sampled_x1]
         y2 = [self._y1_func(x) for x in sampled_x2]
         sampled_x = np.concatenate((sampled_x1, sampled_x2))
@@ -134,4 +137,4 @@ class SimpleTrack(Path):
 
 
 oval_path = OvalPath(5, 3, 500)
-simple_track = SimpleTrack(scale=3, resolution=500, x_range=(-6, 6))
+simple_track = SimpleTrack(scale=3, resolution=1000, x_range=(-6, 6))

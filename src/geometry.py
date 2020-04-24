@@ -17,6 +17,7 @@ def calculate_theta(x, y):
     neg_cos_neg_sin = np.logical_and(cos_theta < 0, sin_theta < 0)
     theta[neg_cos_neg_sin] = -np.pi - np.arcsin(sin_theta[neg_cos_neg_sin])
  
+    theta = np.nan_to_num(theta)
     return theta
 
 
@@ -36,11 +37,11 @@ class Drawer(object):
         self.y_func = y_func
 
     def draw(self, resolution=200):
-        theta = np.linspace(0, 2 * np.pi, num=100, endpoint=False)
+        theta = np.linspace(0, 2 * np.pi, num=resolution, endpoint=False)
         sampled_x = self.x_func(theta)
         sampled_y = self.y_func(theta)
         return sampled_x, sampled_y
-
+   
 
 class Path(object):
     def __init__(self, xs, ys):
@@ -85,7 +86,52 @@ class OvalPath(Path):
         x_func = lambda t: a * np.cos(t)
         y_func = lambda t: b * np.sin(t)
         drawer = Drawer(x_func, y_func)
-        super(OvalPath, self).__init__(*drawer.draw(resolution))
+        super(OvalPath, self).__init__(*drawer.draw(resolution=resolution))
+
+
+class SimpleTrack(Path):
+    def __init__(self, scale=2, resolution=500, x_range=(-6, 6)):
+        self.scale = scale
+        self.resolution = resolution
+        self.x_range = x_range
+        super(SimpleTrack, self).__init__(*self.draw())
+
+    def draw(self):
+        x1_len, x2_len = round(self.resolution / 2), self.resolution - round(self.resolution / 2)
+        sampled_x1 = np.linspace(*self.x_range, num=x1_len)
+        sampled_x2 = np.linspace(*self.x_range, num=x2_len)[::-1]
+        y1 = [self._y2_func(x) for x in sampled_x1]
+        y2 = [self._y1_func(x) for x in sampled_x2]
+        sampled_x = np.concatenate((sampled_x1, sampled_x2))
+        sampled_y = np.asarray(y1 + y2)
+        return sampled_x, sampled_y
+
+    def _y1_func(self, x):
+        s = self.scale
+        if x < -2 * s:
+            return 0
+        elif x < -1 * s:
+            return np.sqrt(s ** 2 - (x + 1 * s) ** 2)
+        elif x < 1 * s:
+            return s
+        elif x < 2 * s:
+            return np.sqrt(s ** 2 - (x - 1 * s) ** 2)
+        else:
+            return 0
+
+    def _y2_func(self, x):
+        s = self.scale
+        if x < -2 * s:
+            return 0
+        elif x < -1 * s:
+            return -np.sqrt(s ** 2 - (x + 1 * s) ** 2)
+        elif x < 1 * s:
+            return -s
+        elif x < 2 * s:
+            return -np.sqrt(s ** 2 - (x - 1 * s) ** 2)
+        else:
+            return 0
 
 
 oval_path = OvalPath(5, 3, 500)
+simple_track = SimpleTrack(scale=3, resolution=500, x_range=(-6, 6))

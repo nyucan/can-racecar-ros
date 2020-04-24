@@ -13,7 +13,7 @@ from geometry_msgs.msg import (
 )
 from tf.transformations import quaternion_from_euler
 from util import quaternion_to_angle
-from geometry import oval_path
+from geometry import oval_path, simple_track
 from geometry import calculate_theta, calculate_diff_theta
 
 
@@ -132,7 +132,7 @@ if __name__ == '__main__':
     rospy.init_node('pub_control')
 
     pid_controller = Controller(
-        track=oval_path, init_pose=(0, 3, 0))
+        track=simple_track, init_pose=(0, 2.5, 0))
 
     # ----- Main control loop -----
     rospy.spin()

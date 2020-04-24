@@ -4,7 +4,7 @@ import rospy
 import numpy as np
 from visualization_msgs.msg import Marker
 from geometry_msgs.msg import Point
-from geometry import oval_path
+from geometry import oval_path, simple_track
 
 
 def visualize_track(track):
@@ -44,8 +44,4 @@ def visualize_track(track):
 
 
 if __name__ == '__main__':
-    track = rospy.get_param('~track', 'oval')
-    if track == 'oval':
-        visualize_track(oval_path)
-    else:
-        raise RuntimeError('Unsupported Track Type: {}'.format(track))
+    visualize_track(simple_track)

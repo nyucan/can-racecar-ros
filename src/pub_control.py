@@ -98,7 +98,7 @@ class Controller(object):
             err_str = 'Error(dis, psi): {:.2f}, {:.2f}'.format(*diff)
         elif model == 'PD':
             diff = np.array(self.calculate_pd_diff_drive(*self.car_pose))
-            K = np.array([1, 0.1, 0.1, 0.1])
+            K = np.array([0.8, 0.1, 0.3, 0.1])
             err_str = 'Error(dis, psi, dot_dis, dot_psi): {:.2f}, {:.2f}, {:.2f}, {:.2f}'.format(*diff)
         elif model == 'PID':
             raise NotImplementedError

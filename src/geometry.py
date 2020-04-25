@@ -137,4 +137,4 @@ class SimpleTrack(Path):
 
 
 oval_path = OvalPath(5, 3, 500)
-simple_track = SimpleTrack(scale=3, resolution=1000, x_range=(-6, 6))
+simple_track = SimpleTrack(scale=3, resolution=2000, x_range=(-6, 6))

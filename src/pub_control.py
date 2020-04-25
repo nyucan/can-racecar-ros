@@ -4,6 +4,7 @@ import rospy
 import rospkg
 import numpy as np
 from os import path
+from time import time
 from datetime import datetime
 from ackermann_msgs.msg import AckermannDrive, AckermannDriveStamped
 from geometry_msgs.msg import (
@@ -21,7 +22,12 @@ from geometry import calculate_theta, calculate_diff_theta
 
 
 class Controller(object):
-    def __init__(self, track, init_pose, recording_on=True):
+    def __init__(
+            self,
+            track,
+            init_pose,
+            noise_factor=0.068,
+            recording_on=True):
         rospack = rospkg.RosPack()
 
         # Constants
@@ -30,7 +36,8 @@ class Controller(object):
         self.UPDATE_RATE = 20.0
         self.MAX_STEERING_ANGLE = 0.34
         self.MAX_VELOCITY = 2.0
-        self.DATA_FILE = path.join(self.PACKAGE_DIR, 'tmp', datetime.now().strftime('%Y%m%d%H%M%S'))
+        self.NOISE_FACTOR = noise_factor
+        self.DATA_FILE = path.join(self.PACKAGE_DIR, 'data', datetime.now().strftime('%Y%m%d%H%M%S'))
 
         # Controller State
         self.car_pose = None
@@ -99,9 +106,14 @@ class Controller(object):
             raise RuntimeError('Choose a model from \'P\', \'PD\' and \'PID\'')
         steering_angle = np.clip(K.dot(diff), -self.MAX_STEERING_ANGLE, self.MAX_STEERING_ANGLE)
         print('{} Steering: {:.2f}'.format(err_str, steering_angle))
+        env_noise = np.sin(time()) * self.NOISE_FACTOR
+        actual_steering = np.clip(
+            steering_angle + env_noise,
+            -self.MAX_STEERING_ANGLE,
+            self.MAX_STEERING_ANGLE)
         if self._recording_on:
             self.data.append(diff.tolist() + [steering_angle])
-        self.send_command((velocity, steering_angle))
+        self.send_command((velocity, actual_steering))
 
     def send_init_pose(self, pose_data):
         assert len(pose_data) == 3
